@@ -43,7 +43,7 @@ class game:
         abmax=-2
         if self.check_col_win(color) or self.check_diagonal_win(color) or self.check_row_win(color):
             return (1,0,0)
-        else:
+        elif not(self.check_col_win(color)or self.check_diagonal_win(color)or self.check_row_win(color)):
             return (-1,0,0)
         
         for i in range(self.size):
@@ -67,8 +67,8 @@ class game:
         abmin=2
         if self.check_col_win(color)or self.check_diagonal_win(color)or self.check_row_win(color):
             return (1,0,0)
-        else:
-            return(-1,0,0)
+        elif not(self.check_col_win(color)or self.check_diagonal_win(color)or self.check_row_win(color)):
+            return (-1,0,0)
         
         for i in range(self.size):
             for j in range(self.size):
