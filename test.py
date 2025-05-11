@@ -10,7 +10,7 @@ class Game:
     def __init__(self, size=5):
         self.matrix = np.zeros((size, size), dtype=int)
         self.size = size
-
+#prints the current board
     def print_board(self):
         print("   " + " ".join(f"{i:2}" for i in range(self.size)))
         for i in range(self.size):
@@ -22,10 +22,10 @@ class Game:
                 elif cell == BLACK:
                     row_str += "⚫ "
                 else:
-                    row_str += ".  "
+                    row_str += "_  "
             print(row_str)
         print()
-
+#check if there is a winner in in a single row, column or diagonal
     def check_row_win(self, color):
         for i in range(self.size):
             for j in range(self.size - 4):
@@ -49,14 +49,15 @@ class Game:
                     return True
         return False
 
+#check if there is a winner in general
     def is_winner(self, color):
         return (self.check_row_win(color) or
                 self.check_col_win(color) or
                 self.check_diagonal_win(color))
-
+# check for a deraw
     def is_draw(self):
         return not np.any(self.matrix == EMPTY)
-
+#finds all valid moves for a game
     def get_all_valid_moves(self):
         return [(i, j) for i in range(self.size) for j in range(self.size) if self.matrix[i, j] == EMPTY]
 
@@ -84,58 +85,125 @@ class Game:
                 self.matrix[i, j] = EMPTY
                 best_score = min(score, best_score)
             return best_score
+# evaluates the entire board and assigns scores based on the threats
+    def evaluate_board(self, color):
+        opponent = WHITE if color == BLACK else BLACK
+        # used to evaluate a sigle direction weather it be a row ,column or a diagonal
+        def evaluate_direction(lines):
+            direction_score = 0
+            # checks for each line in lines(line here means a row, column or diagonal) and gets the max score of the line
+            
+            for line in lines:
+                line_score = self.evaluate_line(line, color, opponent)
+                direction_score = max(direction_score, line_score)
+            return direction_score
         
-    def max_alpha_beta(self, alpha, beta, color):
-        opponent = 2 if color == 1 else 1
+        # get all rows,columns and diagonals
+        rows = [self.matrix[i, j:j+5] for i in range(self.size) 
+                for j in range(self.size-4)]
+        cols = [self.matrix[i:i+5, j] for j in range(self.size) 
+                for i in range(self.size-4)]
+        diags = []
+        for i in range(self.size-4):
+            for j in range(self.size-4):
+                diags.append([self.matrix[i+k, j+k] for k in range(5)])
+                diags.append([self.matrix[i+4-k, j+k] for k in range(5)]) 
+        # evaluate each direction
+        row_score = evaluate_direction(rows)
+        col_score = evaluate_direction(cols)
+        diag_score = evaluate_direction(diags)
+        
+        # Return the best score found 
+        return max(row_score, col_score, diag_score)
+    def evaluate_line(self, line, color, opponent):
+        player_count = np.count_nonzero(line == color)
+        opponent_count = np.count_nonzero(line == opponent)
+        empty_count = np.count_nonzero(line == EMPTY)
+        
+        
+        if player_count > 0 and opponent_count > 0:
+            return 0
+            
+        if player_count > 0:
+
+            if player_count == 4 and empty_count == 1:
+                return 1000  
+            elif player_count == 3 and empty_count == 2:
+                return 100   
+            elif player_count == 2 and empty_count == 3:
+                return 10    
+            else:
+                return 1
+        
+
+        if opponent_count >0:
+    
+            if opponent_count==4 and empty_count == 1:
+                return -1000  
+            elif opponent_count==3 and empty_count == 2:
+                return -100   
+            elif opponent_count==2 and empty_count == 3:
+                return -10    
+            else:
+                return -1     
+                
+        return 0  #
+
+    def max_alpha_beta(self, alpha, beta,depth,color):
+        opponent = WHITE if color == BLACK else BLACK
         if self.is_winner(color):
-            return 1, -1, -1
+            return 10
         elif self.is_winner(opponent):
-            return -1, -1, -1
+            return -10
+        elif self.is_draw() or depth ==0:
+            return self.evaluate_board(color)
 
         best_val = -math.inf
         best_move = (-1, -1)
 
         for i, j in self.get_all_valid_moves():
             self.matrix[i, j] = color
-            val, _, _ = self.min_alpha_beta(alpha, beta, opponent)
-            self.matrix[i, j] = 0
+            val = self.min_alpha_beta(alpha, beta,depth-1,opponent)
+            self.matrix[i, j] = EMPTY
 
             if val > best_val:
                 best_val = val
                 best_move = (i, j)
 
-            alpha = max(alpha, val)
-            if beta <= alpha:
-                break
+            if best_val >=beta:
+                return best_val
+            alpha = max(alpha, best_val)
+        return best_val
 
-        return best_val, best_move[0], best_move[1]
+    def min_alpha_beta(self, alpha, beta,depth,color):
+        opponent = WHITE if color==BLACK else BLACK
 
-    def min_alpha_beta(self, alpha, beta, color):
-        opponent = 2 if color == 1 else 1
-        if self.is_winner(color):
-            return -1, -1, -1
-        elif self.is_winner(opponent):
-            return 1, -1, -1
+        if self.is_winner(opponent):
+            return -10
+        elif self.is_winner(color):
+            return 10
+        elif self.is_draw() or depth==0:
+            return self.evaluate_board(color)
 
         best_val = math.inf
         best_move = (-1, -1)
 
         for i, j in self.get_all_valid_moves():
             self.matrix[i, j] = color
-            val, _, _ = self.max_alpha_beta(alpha, beta, opponent)
-            self.matrix[i, j] = 0
+            val= self.max_alpha_beta(alpha, beta,depth-1,opponent)
+            self.matrix[i, j] = EMPTY
 
             if val < best_val:
                 best_val = val
                 best_move = (i, j)
 
-            beta = min(beta, val)
-            if beta <= alpha:
-                break
+            if best_val <= alpha:
+                return best_val
+            beta= min(beta, best_val)
 
-        return best_val, best_move[0], best_move[1]
+        return best_val
 
-    def ai_move(self, ai_type="minimax"):
+    def ai_move(self, ai_type="minimax",color=WHITE):
         best_score = -math.inf
         best_move = None
         if ai_type == "minimax":
@@ -149,8 +217,9 @@ class Game:
         elif ai_type == "alpha-beta":
             for i, j in self.get_all_valid_moves():
                 self.matrix[i, j] = WHITE
-                score = self.max_alpha_beta(-math.inf, math.inf, 2)[0]  # Alpha-Beta pruning
+                score = self.max_alpha_beta(-math.inf, math.inf,4,color)  # Alpha-Beta pruning
                 self.matrix[i, j] = EMPTY
+
                 if score > best_score:
                     best_score = score
                     best_move = (i, j)
@@ -174,11 +243,12 @@ class Game:
 
 if __name__ == '__main__':
     game_mode = input("Choose game mode (1 for Human vs AI, 2 for AI vs AI): ").strip()
+    board_size= int(input("Enter size of board either 15 or 19: "))
 
     if game_mode == "1":
         ai_type = input("Choose AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
         ai_type = "minimax" if ai_type == "1" else "alpha-beta"
-        g = Game(5)
+        g = Game(board_size)
         g.print_board()
 
         while True:
@@ -206,7 +276,7 @@ if __name__ == '__main__':
         ai_type_1 = "minimax" if ai_type_1 == "1" else "alpha-beta"
         ai_type_2 = "minimax" if ai_type_2 == "1" else "alpha-beta"
 
-        g = Game(5)
+        g = Game(board_size)
         g.print_board()
 
         while True:
@@ -219,7 +289,7 @@ if __name__ == '__main__':
                 print("It's a draw!")
                 break
 
-            g.ai_move(ai_type=ai_type_2)
+            g.ai_move(ai_type=ai_type_2,color=BLACK)
             g.print_board()
             if g.is_winner(BLACK):
                 print("Second AI wins!")
