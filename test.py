@@ -57,9 +57,37 @@ class Game:
 # check for a deraw
     def is_draw(self):
         return not np.any(self.matrix == EMPTY)
-#finds all valid moves for a game
+
     def get_all_valid_moves(self):
-        return [(i, j) for i in range(self.size) for j in range(self.size) if self.matrix[i, j] == EMPTY]
+        moves = []
+        for i in range(self.size):
+            for j in range(self.size):
+                if self.matrix[i][j] != EMPTY:
+                    continue
+                has_neighbor = False
+                for di in [-1, 0, 1]:
+                    for dj in [-1, 0, 1]:
+                        if 0 <= i+di < self.size and 0 <= j+dj < self.size:
+                            if self.matrix[i+di][j+dj] != EMPTY:
+                                has_neighbor = True
+                                break
+                    if has_neighbor:
+                        break
+                if has_neighbor:
+                    moves.append((i, j))
+        return moves if moves else [(self.size//2, self.size//2)]
+    
+    def heuristic_sort_moves(self, moves):
+        def count_neighbors(move):
+            x, y = move
+            count = 0
+            for i in [-1, 0, 1]:
+                for j in [-1, 0, 1]:
+                    if 0 <= x+i < self.size and 0 <= y+j < self.size:
+                        if self.matrix[x+i][y+j] != EMPTY:
+                            count += 1
+            return count
+        return sorted(moves, key=count_neighbors, reverse=True)
 
     def minimax(self, depth, is_maximizing):
         if self.is_winner(WHITE):
@@ -92,13 +120,13 @@ class Game:
         def evaluate_direction(lines):
             direction_score = 0
             # checks for each line in lines(line here means a row, column or diagonal) and gets the max score of the line
-            
             for line in lines:
                 line_score = self.evaluate_line(line, color, opponent)
                 direction_score = max(direction_score, line_score)
             return direction_score
         
         # get all rows,columns and diagonals
+        
         rows = [self.matrix[i, j:j+5] for i in range(self.size) 
                 for j in range(self.size-4)]
         cols = [self.matrix[i:i+5, j] for j in range(self.size) 
@@ -109,99 +137,84 @@ class Game:
                 diags.append([self.matrix[i+k, j+k] for k in range(5)])
                 diags.append([self.matrix[i+4-k, j+k] for k in range(5)]) 
         # evaluate each direction
-        row_score = evaluate_direction(rows)
-        col_score = evaluate_direction(cols)
-        diag_score = evaluate_direction(diags)
+        row_score= evaluate_direction(rows)
+        col_score=evaluate_direction(cols)
+        diag_score= evaluate_direction(diags)
         
         # Return the best score found 
         return max(row_score, col_score, diag_score)
+    
     def evaluate_line(self, line, color, opponent):
         player_count = np.count_nonzero(line == color)
         opponent_count = np.count_nonzero(line == opponent)
         empty_count = np.count_nonzero(line == EMPTY)
-        
-        
+
         if player_count > 0 and opponent_count > 0:
             return 0
-            
         if player_count > 0:
-
             if player_count == 4 and empty_count == 1:
-                return 1000  
+                return 1000*player_count  
             elif player_count == 3 and empty_count == 2:
-                return 100   
+                return 100*player_count
             elif player_count == 2 and empty_count == 3:
-                return 10    
+                return 10 *player_count
             else:
                 return 1
-        
-
         if opponent_count >0:
-    
             if opponent_count==4 and empty_count == 1:
-                return -1000  
+                return -1000*opponent_count
             elif opponent_count==3 and empty_count == 2:
-                return -100   
+                return -100*opponent_count
             elif opponent_count==2 and empty_count == 3:
-                return -10    
+                return -10*opponent_count
             else:
                 return -1     
                 
-        return 0  #
+        return 0  
+    
 
-    def max_alpha_beta(self, alpha, beta,depth,color):
-        opponent = WHITE if color == BLACK else BLACK
-        if self.is_winner(color):
-            return 10
-        elif self.is_winner(opponent):
-            return -10
-        elif self.is_draw() or depth ==0:
-            return self.evaluate_board(color)
+    def alpha_beta_minimax(self,alpha,beta, depth, is_maximizing):
+        if self.is_winner(WHITE):
+            return 10000
+        elif self.is_winner(BLACK):
+            return -10000
+        elif depth == 0:
+            if self.evaluate_board(BLACK)==0:
+                return self.evaluate_board(WHITE)/1
+            else:
+                return self.evaluate_board(WHITE)/self.evaluate_board(BLACK)
 
-        best_val = -math.inf
-        best_move = (-1, -1)
-
-        for i, j in self.get_all_valid_moves():
-            self.matrix[i, j] = color
-            val = self.min_alpha_beta(alpha, beta,depth-1,opponent)
-            self.matrix[i, j] = EMPTY
-
-            if val > best_val:
-                best_val = val
-                best_move = (i, j)
-
-            if best_val >=beta:
-                return best_val
-            alpha = max(alpha, best_val)
-        return best_val
-
-    def min_alpha_beta(self, alpha, beta,depth,color):
-        opponent = WHITE if color==BLACK else BLACK
-
-        if self.is_winner(opponent):
-            return -10
-        elif self.is_winner(color):
-            return 10
-        elif self.is_draw() or depth==0:
-            return self.evaluate_board(color)
-
-        best_val = math.inf
-        best_move = (-1, -1)
-
-        for i, j in self.get_all_valid_moves():
-            self.matrix[i, j] = color
-            val= self.max_alpha_beta(alpha, beta,depth-1,opponent)
-            self.matrix[i, j] = EMPTY
-
-            if val < best_val:
-                best_val = val
-                best_move = (i, j)
-
-            if best_val <= alpha:
-                return best_val
-            beta= min(beta, best_val)
-
-        return best_val
+        if is_maximizing:
+            best_score = -math.inf
+            moves=self.get_all_valid_moves()
+            moves=self.heuristic_sort_moves(moves)
+            for i, j in moves:
+                self.matrix[i, j] = WHITE
+                score = self.alpha_beta_minimax(alpha,beta,depth - 1, False)
+                self.matrix[i, j] = EMPTY
+                if score> alpha:
+                    alpha = score
+                if score >beta:
+                    return score
+                if score > best_score:
+                    best_score = score
+            
+            return best_score
+        else:
+            best_score = math.inf
+            moves=self.get_all_valid_moves()
+            moves=self.heuristic_sort_moves(moves)
+            for i, j in moves:
+                self.matrix[i, j] = BLACK
+                score = self.alpha_beta_minimax(alpha,beta,depth - 1, True)
+                self.matrix[i, j] = EMPTY
+                if score < beta:
+                    beta = score
+                if score < alpha:
+                    return score
+                if score < best_score:
+                    best_score = score
+            return best_score
 
     def ai_move(self, ai_type="minimax",color=WHITE):
         best_score = -math.inf
@@ -215,9 +228,11 @@ class Game:
                     best_score = score
                     best_move = (i, j)
         elif ai_type == "alpha-beta":
-            for i, j in self.get_all_valid_moves():
+            moves= self.get_all_valid_moves()
+            moves=self.heuristic_sort_moves(moves)
+            for i, j in moves:
                 self.matrix[i, j] = WHITE
-                score = self.max_alpha_beta(-math.inf, math.inf,4,color)  # Alpha-Beta pruning
+                score = self.alpha_beta_minimax(-math.inf,math.inf,3,False)  # Alpha-Beta pruning
                 self.matrix[i, j] = EMPTY
 
                 if score > best_score:
