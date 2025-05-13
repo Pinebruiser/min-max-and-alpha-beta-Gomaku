@@ -58,25 +58,34 @@ class Game:
     def is_draw(self):
         return not np.any(self.matrix == EMPTY)
 
+    #def get_all_valid_moves(self):
+        #moves = []
+        #for i in range(self.size):
+           # for j in range(self.size):
+                #if self.matrix[i][j] != EMPTY:
+                    #continue
+                #has_neighbor = False
+                #for di in [-1, 0, 1]:
+                    #for dj in [-1, 0, 1]:
+                        #if 0 <= i+di < self.size and 0 <= j+dj < self.size:
+                            #if self.matrix[i+di][j+dj] != EMPTY:
+                                #has_neighbor = True
+                                #break
+                    #if has_neighbor:
+                        #break
+                #if has_neighbor:
+                    #moves.append((i, j))
+        #return moves if moves else [(self.size//2, self.size//2)]
+        
     def get_all_valid_moves(self):
-        moves = []
+        moves =[]
         for i in range(self.size):
             for j in range(self.size):
-                if self.matrix[i][j] != EMPTY:
-                    continue
-                has_neighbor = False
-                for di in [-1, 0, 1]:
-                    for dj in [-1, 0, 1]:
-                        if 0 <= i+di < self.size and 0 <= j+dj < self.size:
-                            if self.matrix[i+di][j+dj] != EMPTY:
-                                has_neighbor = True
-                                break
-                    if has_neighbor:
-                        break
-                if has_neighbor:
-                    moves.append((i, j))
-        return moves if moves else [(self.size//2, self.size//2)]
-    
+                if self.matrix[i,j]==EMPTY:
+                    moves.append((i,j))
+                    
+        return moves
+                            
     def heuristic_sort_moves(self, moves):
         def count_neighbors(move):
             x, y = move
@@ -113,84 +122,24 @@ class Game:
                 self.matrix[i, j] = EMPTY
                 best_score = min(score, best_score)
             return best_score
-# evaluates the entire board and assigns scores based on the threats
-    def evaluate_board(self, color):
-        opponent = WHITE if color == BLACK else BLACK
-        # used to evaluate a sigle direction weather it be a row ,column or a diagonal
-        def evaluate_direction(lines):
-            direction_score = 0
-            # checks for each line in lines(line here means a row, column or diagonal) and gets the max score of the line
-            for line in lines:
-                line_score = self.evaluate_line(line, color, opponent)
-                direction_score = max(direction_score, line_score)
-            return direction_score
-        
-        # get all rows,columns and diagonals
-        
-        rows = [self.matrix[i, j:j+5] for i in range(self.size) 
-                for j in range(self.size-4)]
-        cols = [self.matrix[i:i+5, j] for j in range(self.size) 
-                for i in range(self.size-4)]
-        diags = []
-        for i in range(self.size-4):
-            for j in range(self.size-4):
-                diags.append([self.matrix[i+k, j+k] for k in range(5)])
-                diags.append([self.matrix[i+4-k, j+k] for k in range(5)]) 
-        # evaluate each direction
-        row_score= evaluate_direction(rows)
-        col_score=evaluate_direction(cols)
-        diag_score= evaluate_direction(diags)
-        
-        # Return the best score found 
-        return max(row_score, col_score, diag_score)
-    
-    def evaluate_line(self, line, color, opponent):
-        player_count = np.count_nonzero(line == color)
-        opponent_count = np.count_nonzero(line == opponent)
-        empty_count = np.count_nonzero(line == EMPTY)
 
-        if player_count > 0 and opponent_count > 0:
-            return 0
-        if player_count > 0:
-            if player_count == 4 and empty_count == 1:
-                return 1000*player_count  
-            elif player_count == 3 and empty_count == 2:
-                return 100*player_count
-            elif player_count == 2 and empty_count == 3:
-                return 10 *player_count
-            else:
-                return 1
-        if opponent_count >0:
-            if opponent_count==4 and empty_count == 1:
-                return -1000*opponent_count
-            elif opponent_count==3 and empty_count == 2:
-                return -100*opponent_count
-            elif opponent_count==2 and empty_count == 3:
-                return -10*opponent_count
-            else:
-                return -1     
-                
-        return 0  
-    
 
-    def alpha_beta_minimax(self,alpha,beta, depth, is_maximizing):
-        if self.is_winner(WHITE):
+    def alpha_beta_minimax(self,alpha,beta, depth,color, is_maximizing):
+        opponent= BLACK if color == WHITE else WHITE
+        if self.is_winner(color):
             return 10000
-        elif self.is_winner(BLACK):
+        elif self.is_winner(opponent):
             return -10000
-        elif depth == 0:
-            if self.evaluate_board(BLACK)==0:
-                return self.evaluate_board(WHITE)/1
-            else:
-                return self.evaluate_board(WHITE)/self.evaluate_board(BLACK)
-
+        elif depth == 0 or self.is_draw():
+            return 0
+            
         if is_maximizing:
             best_score = -math.inf
             moves=self.get_all_valid_moves()
             moves=self.heuristic_sort_moves(moves)
             for i, j in moves:
-                self.matrix[i, j] = WHITE
-                score = self.alpha_beta_minimax(alpha,beta,depth - 1, False)
+                self.matrix[i, j] = color
+                score = self.alpha_beta_minimax(alpha,beta,depth-1,opponent, False)
                 self.matrix[i, j] = EMPTY
                 if score> alpha:
                     alpha = score
@@ -205,8 +154,8 @@ class Game:
             moves=self.get_all_valid_moves()
             moves=self.heuristic_sort_moves(moves)
             for i, j in moves:
-                self.matrix[i, j] = BLACK
-                score = self.alpha_beta_minimax(alpha,beta,depth - 1, True)
+                self.matrix[i, j] = opponent
+                score = self.alpha_beta_minimax(alpha,beta,depth - 1,color, True)
                 self.matrix[i, j] = EMPTY
                 if score < beta:
                     beta = score
@@ -216,23 +165,24 @@ class Game:
                     best_score = score
             return best_score
 
+
     def ai_move(self, ai_type="minimax",color=WHITE):
         best_score = -math.inf
         best_move = None
+        moves= self.get_all_valid_moves()
+        moves=self.heuristic_sort_moves(moves)
         if ai_type == "minimax":
-            for i, j in self.get_all_valid_moves():
-                self.matrix[i, j] = WHITE
+            for i, j in moves:
+                self.matrix[i, j] = color
                 score = self.minimax(2, False)  # Limited depth for performance
                 self.matrix[i, j] = EMPTY
                 if score > best_score:
                     best_score = score
                     best_move = (i, j)
         elif ai_type == "alpha-beta":
-            moves= self.get_all_valid_moves()
-            moves=self.heuristic_sort_moves(moves)
             for i, j in moves:
-                self.matrix[i, j] = WHITE
-                score = self.alpha_beta_minimax(-math.inf,math.inf,3,False)  # Alpha-Beta pruning
+                self.matrix[i, j] = color
+                score = self.alpha_beta_minimax(-math.inf,math.inf,2,color,False)  # Alpha-Beta pruning
                 self.matrix[i, j] = EMPTY
 
                 if score > best_score:
@@ -240,7 +190,7 @@ class Game:
                     best_move = (i, j)
 
         if best_move:
-            self.matrix[best_move[0], best_move[1]] = WHITE  # Corrected placement
+            self.matrix[best_move[0], best_move[1]] = color  # Corrected placement
             print(f"AI places ⚪ at position ({best_move[0]}, {best_move[1]})")
 
     def human_move(self):
