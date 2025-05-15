@@ -172,19 +172,110 @@ def get_cell_from_mouse(pos, size):
         return row, col
     return None
 
-def main():
+def config_menu():
     pygame.init()
-    board_size = 15
-    game = Game(board_size)
-    ai_type = "alpha-beta"  # or "minimax"
+    WIDTH, HEIGHT = 400, 500
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Gomoku Config")
 
-    screen = pygame.display.set_mode((CELL_SIZE * board_size + MARGIN * 2,
-                                      CELL_SIZE * board_size + MARGIN * 2))
-    pygame.display.set_caption("Gomoku (Human vs AI)")
+    font = pygame.font.SysFont(None, 28)
+    big_font = pygame.font.SysFont(None, 36)
+
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    GRAY = (180, 180, 180)
+    GREEN = (0, 200, 0)
+
+    # Options
+    game_mode = "Player vs AI"
+    board_size = 15
+    ai_type = "alpha-beta"
+
+    def draw_text(text, x, y, selected=False):
+        color = GREEN if selected else BLACK
+        txt_surface = font.render(text, True, color)
+        screen.blit(txt_surface, (x, y))
+        return txt_surface.get_rect(topleft=(x, y))
+
+    running = True
+    play_button_rect = None
+
+    while running:
+        screen.fill(WHITE)
+        y_offset = 40
+
+        screen.blit(big_font.render("Select Game Configuration", True, BLACK), (50, 10))
+
+        # Game Mode
+        screen.blit(font.render("Game Mode:", True, BLACK), (30, y_offset))
+        mode1 = draw_text("Player vs AI", 50, y_offset + 25, game_mode == "Player vs AI")
+        mode2 = draw_text("AI vs AI", 200, y_offset + 25, game_mode == "AI vs AI")
+
+        y_offset += 80
+        # Board Size
+        screen.blit(font.render("Board Size:", True, BLACK), (30, y_offset))
+        size1 = draw_text("7 x 7", 50, y_offset + 25, board_size == 7)
+        size2 = draw_text("15 x 15", 150, y_offset + 25, board_size == 15)
+        size3 = draw_text("19 x 19", 270, y_offset + 25, board_size == 19)
+
+        y_offset += 80
+        # AI Type
+        screen.blit(font.render("AI Type:", True, BLACK), (30, y_offset))
+        ai1 = draw_text("Minimax", 50, y_offset + 25, ai_type == "minimax")
+        ai2 = draw_text("Alpha-Beta", 200, y_offset + 25, ai_type == "alpha-beta")
+
+        y_offset += 100
+        # Play Button
+        play_text = big_font.render("Play", True, WHITE)
+        play_button_rect = pygame.Rect(150, y_offset, 100, 40)
+        pygame.draw.rect(screen, GREEN, play_button_rect)
+        screen.blit(play_text, (play_button_rect.x + 20, play_button_rect.y + 5))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = event.pos
+                if mode1.collidepoint((mx, my)):
+                    game_mode = "Player vs AI"
+                elif mode2.collidepoint((mx, my)):
+                    game_mode = "AI vs AI"
+
+                elif size1.collidepoint((mx, my)):
+                    board_size = 7
+                elif size2.collidepoint((mx, my)):
+                    board_size = 15
+                elif size3.collidepoint((mx, my)):
+                    board_size = 19
+
+                elif ai1.collidepoint((mx, my)):
+                    ai_type = "minimax"
+                elif ai2.collidepoint((mx, my)):
+                    ai_type = "alpha-beta"
+
+                elif play_button_rect.collidepoint((mx, my)):
+                    return game_mode, board_size, ai_type
+                
+def main():
+    game_mode, board_size, ai_type = config_menu()  # Show config window
+    game = Game(board_size)
+
+    pygame.init()
+    screen = pygame.display.set_mode((CELL_SIZE * board_size + MARGIN * 0,
+                                      CELL_SIZE * board_size + MARGIN * 0))
+    pygame.display.set_caption("Gomoku")
     clock = pygame.time.Clock()
 
     running = True
     game_over = False
+
+    # For AI vs AI mode, set a timer to trigger AI moves
+    if game_mode == "AI vs AI":
+        pygame.time.set_timer(pygame.USEREVENT, 500)  # every 500ms
 
     while running:
         draw_board(screen, game)
@@ -194,33 +285,47 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
-            if not game_over and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                cell = get_cell_from_mouse(event.pos, game.size)
-                if cell:
-                    r, c = cell
-                    if game.matrix[r, c] == EMPTY:
-                        game.matrix[r, c] = BLACK
-                        if game.is_winner(BLACK):
-                            print("You win!")
-                            game_over = True
-                            break
-                        if game.is_draw():
-                            print("Draw!")
-                            game_over = True
-                            break
+            if not game_over:
+                if game_mode == "Player vs AI":
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        cell = get_cell_from_mouse(event.pos, game.size)
+                        if cell:
+                            r, c = cell
+                            if game.matrix[r, c] == EMPTY:
+                                game.matrix[r, c] = BLACK
+                                if game.is_winner(BLACK):
+                                    print("You win!")
+                                    game_over = True
+                                    break
+                                if game.is_draw():
+                                    print("Draw!")
+                                    game_over = True
+                                    break
 
-                        ai_move = game.ai_move(ai_type=ai_type, color=WHITE)
-                        if ai_move:
-                            if game.is_winner(WHITE):
-                                print("AI wins!")
-                                game_over = True
-                        if game.is_draw():
-                            print("Draw!")
-                            game_over = True
+                                # AI turn
+                                ai_move = game.ai_move(ai_type=ai_type, color=WHITE)
+                                if ai_move and game.is_winner(WHITE):
+                                    print("AI wins!")
+                                    game_over = True
+                                elif game.is_draw():
+                                    print("Draw!")
+                                    game_over = True
+
+                elif game_mode == "AI vs AI" and event.type == pygame.USEREVENT:
+                    # Alternate moves between WHITE and BLACK
+                    current_color = WHITE if np.count_nonzero(game.matrix == WHITE) <= np.count_nonzero(game.matrix == BLACK) else BLACK
+                    move = game.ai_move(ai_type=ai_type, color=current_color)
+                    if move and game.is_winner(current_color):
+                        print(f"{'AI WHITE' if current_color == WHITE else 'AI BLACK'} wins!")
+                        game_over = True
+                    elif game.is_draw():
+                        print("Draw!")
+                        game_over = True
 
         clock.tick(FPS)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
