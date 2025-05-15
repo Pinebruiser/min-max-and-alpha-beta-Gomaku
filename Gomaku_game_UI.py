@@ -194,6 +194,9 @@ def config_menu():
     game_mode = "Player vs AI"
     board_size = 15
     ai_type = "alpha-beta"
+    ai_type_white = "alpha-beta"
+    ai_type_black = "alpha-beta"
+
 
     def draw_text(text, x, y, selected=False):
         color = GREEN if selected else BLACK
@@ -223,10 +226,25 @@ def config_menu():
         size3 = draw_text("19 x 19", 270, y_offset + 25, board_size == 19)
 
         y_offset += 80
-        # AI Type
-        screen.blit(font.render("AI Type:", True, BLACK), (30, y_offset))
-        ai1 = draw_text("Minimax", 50, y_offset + 25, ai_type == "minimax")
-        ai2 = draw_text("Alpha-Beta", 200, y_offset + 25, ai_type == "alpha-beta")
+        
+        if game_mode == "AI vs AI":
+            # AI WHITE Type
+            screen.blit(font.render("AI WHITE Type:", True, BLACK), (30, y_offset))
+            aiw1 = draw_text("Minimax", 50, y_offset + 25, ai_type_white == "minimax")
+            aiw2 = draw_text("Alpha-Beta", 200, y_offset + 25, ai_type_white == "alpha-beta")
+
+            y_offset += 80
+            # AI BLACK Type
+            screen.blit(font.render("AI BLACK Type:", True, BLACK), (30, y_offset))
+            aib1 = draw_text("Minimax", 50, y_offset + 25, ai_type_black == "minimax")
+            aib2 = draw_text("Alpha-Beta", 200, y_offset + 25, ai_type_black == "alpha-beta")
+
+        else:
+            # AI Type
+            screen.blit(font.render("AI Type:", True, BLACK), (30, y_offset))
+            ai1 = draw_text("Minimax", 50, y_offset + 25, ai_type == "minimax")
+            ai2 = draw_text("Alpha-Beta", 200, y_offset + 25, ai_type == "alpha-beta")
+
 
         y_offset += 100
         # Play Button
@@ -260,12 +278,21 @@ def config_menu():
                     ai_type = "minimax"
                 elif ai2.collidepoint((mx, my)):
                     ai_type = "alpha-beta"
+                elif aiw1.collidepoint((mx, my)):
+                    ai_type_white = "minimax"
+                elif aiw2.collidepoint((mx, my)):
+                    ai_type_white = "alpha-beta"
+                elif aib1.collidepoint((mx, my)):
+                    ai_type_black = "minimax"
+                elif aib2.collidepoint((mx, my)):
+                    ai_type_black = "alpha-beta"
 
                 elif play_button_rect.collidepoint((mx, my)):
-                    return game_mode, board_size, ai_type
+                    return game_mode, board_size, ai_type, ai_type_white, ai_type_black
+
                 
 def main():
-    game_mode, board_size, ai_type = config_menu()
+    game_mode, board_size, ai_type, ai_type_white, ai_type_black = config_menu()
     game = Game(board_size)
 
     pygame.init()
@@ -321,10 +348,11 @@ def main():
                                     print("Draw!")
                                     game_over = True
 
-                elif game_mode == "AI vs AI" and event.type == pygame.USEREVENT:
+                if game_mode == "AI vs AI" and event.type == pygame.USEREVENT:
                     current_color = WHITE if np.count_nonzero(game.matrix == WHITE) <= np.count_nonzero(game.matrix == BLACK) else BLACK
-                    move = game.ai_move(ai_type=ai_type, color=current_color)
-
+                    current_ai_type = ai_type_white if current_color == WHITE else ai_type_black
+                    move = game.ai_move(ai_type=current_ai_type, color=current_color)
+                    
                     draw_board(screen, game)
                     pygame.display.flip()
                     pygame.time.delay(300)
