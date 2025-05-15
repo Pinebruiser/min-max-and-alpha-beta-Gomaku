@@ -84,7 +84,9 @@ class Game:
 
         if is_maximizing:
             best_score = -math.inf
-            for i, j in self.get_all_valid_moves():
+            moves = self.get_all_valid_moves()
+            moves = self.heuristic_sort_moves(moves)
+            for i, j in moves:
                 self.matrix[i, j] = WHITE
                 score = self.minimax(depth - 1, False)
                 self.matrix[i, j] = EMPTY
@@ -92,7 +94,9 @@ class Game:
             return best_score
         else:
             best_score = math.inf
-            for i, j in self.get_all_valid_moves():
+            moves = self.get_all_valid_moves()
+            moves = self.heuristic_sort_moves(moves)
+            for i, j in moves:
                 self.matrix[i, j] = BLACK
                 score = self.minimax(depth - 1, True)
                 self.matrix[i, j] = EMPTY
@@ -110,7 +114,9 @@ class Game:
 
         if is_maximizing:
             best_score = -math.inf
-            for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
+            moves = self.get_all_valid_moves()
+            moves = self.heuristic_sort_moves(moves)
+            for i, j in moves:
                 self.matrix[i, j] = color
                 score = self.alpha_beta_minimax(alpha, beta, depth - 1, opponent, False)
                 self.matrix[i, j] = EMPTY
@@ -121,7 +127,9 @@ class Game:
             return best_score
         else:
             best_score = math.inf
-            for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
+            moves = self.get_all_valid_moves()
+            moves = self.heuristic_sort_moves(moves)
+            for i, j in moves:
                 self.matrix[i, j] = opponent
                 score = self.alpha_beta_minimax(alpha, beta, depth - 1, color, True)
                 self.matrix[i, j] = EMPTY
