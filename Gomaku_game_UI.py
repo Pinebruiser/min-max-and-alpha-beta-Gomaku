@@ -2,6 +2,9 @@ import pygame
 import numpy as np
 import math
 import time
+import tkinter as tk
+from tkinter import messagebox
+
 
 # Constants
 EMPTY = 0
@@ -290,7 +293,14 @@ def config_menu():
                 elif play_button_rect.collidepoint((mx, my)):
                     return game_mode, board_size, ai_type, ai_type_white, ai_type_black
 
-                
+
+def show_result_popup(message):
+    root = tk.Tk()
+    root.withdraw()  # Hide the main tkinter window
+    messagebox.showinfo("Game Over", message)
+    root.destroy()
+
+
 def main():
     game_mode, board_size, ai_type, ai_type_white, ai_type_black = config_menu()
     game = Game(board_size)
@@ -328,11 +338,11 @@ def main():
                                 pygame.time.delay(300)
 
                                 if game.is_winner(BLACK):
-                                    print("You win!")
+                                    show_result_popup("You Win!")
                                     game_over = True
                                     break
                                 if game.is_draw():
-                                    print("Draw!")
+                                    show_result_popup("Draw!")
                                     game_over = True
                                     break
 
@@ -342,10 +352,10 @@ def main():
                                 pygame.time.delay(300)
 
                                 if ai_move and game.is_winner(WHITE):
-                                    print("AI wins!")
+                                    show_result_popup("AI Wins!")
                                     game_over = True
                                 elif game.is_draw():
-                                    print("Draw!")
+                                    show_result_popup("Draw!")
                                     game_over = True
 
                 if game_mode == "AI vs AI" and event.type == pygame.USEREVENT:
@@ -358,10 +368,10 @@ def main():
                     pygame.time.delay(300)
 
                     if move and game.is_winner(current_color):
-                        print(f"{'AI WHITE' if current_color == WHITE else 'AI BLACK'} wins!")
+                        show_result_popup(f"{'AI WHITE' if current_color == WHITE else 'AI BLACK'} wins!")
                         game_over = True
                     elif game.is_draw():
-                        print("Draw!")
+                        show_result_popup("Draw!")
                         game_over = True
 
         clock.tick(FPS)
