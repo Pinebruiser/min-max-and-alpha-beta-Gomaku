@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
 import math
+import time
 
 # Constants
 EMPTY = 0
@@ -130,7 +131,10 @@ class Game:
     def ai_move(self, ai_type="minimax", color=WHITE):
         best_score = -math.inf
         best_move = None
-        for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
+        moves= self.get_all_valid_moves()
+        moves=self.heuristic_sort_moves(moves)
+        
+        for i, j in moves:
             self.matrix[i, j] = color
             score = (
                 self.minimax(2, False) if ai_type == "minimax"
@@ -261,7 +265,7 @@ def config_menu():
                     return game_mode, board_size, ai_type
                 
 def main():
-    game_mode, board_size, ai_type = config_menu()  # Show config window
+    game_mode, board_size, ai_type = config_menu()
     game = Game(board_size)
 
     pygame.init()
@@ -273,9 +277,8 @@ def main():
     running = True
     game_over = False
 
-    # For AI vs AI mode, set a timer to trigger AI moves
     if game_mode == "AI vs AI":
-        pygame.time.set_timer(pygame.USEREVENT, 500)  # every 500ms
+        pygame.time.set_timer(pygame.USEREVENT, 500)
 
     while running:
         draw_board(screen, game)
@@ -293,6 +296,10 @@ def main():
                             r, c = cell
                             if game.matrix[r, c] == EMPTY:
                                 game.matrix[r, c] = BLACK
+                                draw_board(screen, game)
+                                pygame.display.flip()
+                                pygame.time.delay(300)
+
                                 if game.is_winner(BLACK):
                                     print("You win!")
                                     game_over = True
@@ -302,8 +309,11 @@ def main():
                                     game_over = True
                                     break
 
-                                # AI turn
                                 ai_move = game.ai_move(ai_type=ai_type, color=WHITE)
+                                draw_board(screen, game)
+                                pygame.display.flip()
+                                pygame.time.delay(300)
+
                                 if ai_move and game.is_winner(WHITE):
                                     print("AI wins!")
                                     game_over = True
@@ -312,9 +322,13 @@ def main():
                                     game_over = True
 
                 elif game_mode == "AI vs AI" and event.type == pygame.USEREVENT:
-                    # Alternate moves between WHITE and BLACK
                     current_color = WHITE if np.count_nonzero(game.matrix == WHITE) <= np.count_nonzero(game.matrix == BLACK) else BLACK
                     move = game.ai_move(ai_type=ai_type, color=current_color)
+
+                    draw_board(screen, game)
+                    pygame.display.flip()
+                    pygame.time.delay(300)
+
                     if move and game.is_winner(current_color):
                         print(f"{'AI WHITE' if current_color == WHITE else 'AI BLACK'} wins!")
                         game_over = True
@@ -325,7 +339,6 @@ def main():
         clock.tick(FPS)
 
     pygame.quit()
-
 
 if __name__ == "__main__":
     main()
