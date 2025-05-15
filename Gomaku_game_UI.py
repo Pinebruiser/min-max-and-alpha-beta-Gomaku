@@ -281,13 +281,13 @@ def config_menu():
                     ai_type = "minimax"
                 elif ai2.collidepoint((mx, my)):
                     ai_type = "alpha-beta"
-                elif aiw1.collidepoint((mx, my)):
+                elif game_mode == "AI vs AI" and aiw1.collidepoint((mx, my)):
                     ai_type_white = "minimax"
-                elif aiw2.collidepoint((mx, my)):
+                elif game_mode == "AI vs AI" and aiw2.collidepoint((mx, my)):
                     ai_type_white = "alpha-beta"
-                elif aib1.collidepoint((mx, my)):
+                elif game_mode == "AI vs AI" and aib1.collidepoint((mx, my)):
                     ai_type_black = "minimax"
-                elif aib2.collidepoint((mx, my)):
+                elif game_mode == "AI vs AI" and aib2.collidepoint((mx, my)):
                     ai_type_black = "alpha-beta"
 
                 elif play_button_rect.collidepoint((mx, my)):
