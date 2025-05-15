@@ -1,95 +1,37 @@
+import pygame
 import numpy as np
 import math
-import tkinter as tk
-from tkinter import messagebox
-import time
 
 # Constants
 EMPTY = 0
 WHITE = 1  # AI
 BLACK = 2  # Human
 
+CELL_SIZE = 40
+MARGIN = 20
+LINE_WIDTH = 1
+FPS = 60
+
+# Colors
+BG_COLOR = (245, 222, 179)  # Light wood
+GRID_COLOR = (0, 0, 0)
+BLACK_COLOR = (0, 0, 0)
+WHITE_COLOR = (255, 255, 255)
+
+# Game logic (Your Game class)
 class Game:
-    
-    human_turn = [-1,-1]
-    
-    def __init__(self, size=5):
+    def __init__(self, size=15):
         self.matrix = np.zeros((size, size), dtype=int)
         self.size = size
-        
-        # Create the main window
-        root = tk.Tk()
-        root.title("Gomoku")
-        root.geometry("800x600")
-        
-        # Frame (Board)
-        frame_board  = tk.Frame(root,bg="#000",width=500,height=500)
-        frame_board.pack()
-        frame_board.place(anchor='center', relx=0.5, rely=0.5)
-        
-        
-        # Button (Play vs CPU)
-        button_ply1 = tk.Button(root, text="Play player vs CPU", command=lambda: self.ply_cpu_select(), font=('utopia',20))
-        button_ply1.pack(pady=10)
 
-        
-        self.buttons = [[None for _ in range(size)] for _ in range(size)]
-        for r in range(size):
-            for c in range(size):
-                # Create a container Frame with border color
-                cell = tk.Frame(
-                    frame_board,
-                    bg="#000",
-                    highlightbackground="#000",
-                    highlightthickness=1,
-                    bd=0
-                )
-                cell.grid(row=r, column=c, padx=1, pady=1)
+    def is_winner(self, color):
+        return (self.check_row_win(color) or
+                self.check_col_win(color) or
+                self.check_diagonal_win(color))
 
-                # Place a button inside the cell
-                btn = tk.Button(
-                    cell,
-                    text="",#f"{r},{c}",
-                    bg="#9f5c34",
-                    fg="#FFF",
-                    relief="flat",
-                    width=6,
-                    height=2,
-                    font=('utopia',24),
-                    name=f"{r},{c}",
-                    command=lambda r=r, c=c: self.on_cell_click(r, c)
-                )
-                self.buttons[r][c] = btn
-                btn.pack()
+    def is_draw(self):
+        return not np.any(self.matrix == EMPTY)
 
-
-        # Run the application
-        root.mainloop()
-        
-    def on_cell_click(self,r,c):
-        self.last_turn = [r,c]
-    
-    def ply_cpu_select(self):
-    #g.run_player_game(1)
-        self.run_ai_game(1,1)
-        
-        
-#prints the current board
-    def print_board(self):
-        #print("   " + " ".join(f"{i:2}" for i in range(self.size)))
-        for i in range(self.size):
-            row_str = f"{i:2} "
-            for j in range(self.size):
-                cell = self.matrix[i, j]
-                if cell == WHITE:
-                    row_str += "⚪ "
-                elif cell == BLACK:
-                    row_str += "⚫ "
-                else:
-                    row_str += "_  "
-            #print(row_str)
-        #print()
-#check if there is a winner in in a single row, column or diagonal
     def check_row_win(self, color):
         for i in range(self.size):
             for j in range(self.size - 4):
@@ -113,24 +55,9 @@ class Game:
                     return True
         return False
 
-#check if there is a winner in general
-    def is_winner(self, color):
-        return (self.check_row_win(color) or
-                self.check_col_win(color) or
-                self.check_diagonal_win(color))
-# check for a deraw
-    def is_draw(self):
-        return not np.any(self.matrix == EMPTY)
-        
     def get_all_valid_moves(self):
-        moves =[]
-        for i in range(self.size):
-            for j in range(self.size):
-                if self.matrix[i,j]==EMPTY:
-                    moves.append((i,j))
-                    
-        return moves
-                            
+        return [(i, j) for i in range(self.size) for j in range(self.size) if self.matrix[i, j] == EMPTY]
+
     def heuristic_sort_moves(self, moves):
         def count_neighbors(move):
             x, y = move
@@ -168,207 +95,132 @@ class Game:
                 best_score = min(score, best_score)
             return best_score
 
-
-    def alpha_beta_minimax(self,alpha,beta, depth,color, is_maximizing):
-        opponent= BLACK if color == WHITE else WHITE
+    def alpha_beta_minimax(self, alpha, beta, depth, color, is_maximizing):
+        opponent = BLACK if color == WHITE else WHITE
         if self.is_winner(color):
             return 10000
         elif self.is_winner(opponent):
             return -10000
         elif depth == 0 or self.is_draw():
             return 0
-            
+
         if is_maximizing:
             best_score = -math.inf
-            moves=self.get_all_valid_moves()
-            moves=self.heuristic_sort_moves(moves)
-            for i, j in moves:
+            for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
                 self.matrix[i, j] = color
-                score = self.alpha_beta_minimax(alpha,beta,depth-1,opponent, False)
+                score = self.alpha_beta_minimax(alpha, beta, depth - 1, opponent, False)
                 self.matrix[i, j] = EMPTY
-                if score> alpha:
-                    alpha = score
-                if score >beta:
-                    return score
-                if score > best_score:
-                    best_score = score
-            
+                alpha = max(alpha, score)
+                if beta <= alpha:
+                    break
+                best_score = max(score, best_score)
             return best_score
         else:
             best_score = math.inf
-            moves=self.get_all_valid_moves()
-            moves=self.heuristic_sort_moves(moves)
-            for i, j in moves:
+            for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
                 self.matrix[i, j] = opponent
-                score = self.alpha_beta_minimax(alpha,beta,depth - 1,color, True)
+                score = self.alpha_beta_minimax(alpha, beta, depth - 1, color, True)
                 self.matrix[i, j] = EMPTY
-                if score < beta:
-                    beta = score
-                if score < alpha:
-                    return score
-                if score < best_score:
-                    best_score = score
+                beta = min(beta, score)
+                if beta <= alpha:
+                    break
+                best_score = min(score, best_score)
             return best_score
 
-
-    def ai_move(self, ai_type="minimax",color=WHITE):
+    def ai_move(self, ai_type="minimax", color=WHITE):
         best_score = -math.inf
         best_move = None
-        moves= self.get_all_valid_moves()
-        moves=self.heuristic_sort_moves(moves)
-        if ai_type == "minimax":
-            for i, j in moves:
-                self.matrix[i, j] = color
-                score = self.minimax(2, False)  # Limited depth for performance
-                self.matrix[i, j] = EMPTY
-                if score > best_score:
-                    best_score = score
-                    best_move = (i, j)
-        elif ai_type == "alpha-beta":
-            for i, j in moves:
-                self.matrix[i, j] = color
-                score = self.alpha_beta_minimax(-math.inf,math.inf,2,color,False)  # Alpha-Beta pruning
-                self.matrix[i, j] = EMPTY
-
-                if score > best_score:
-                    best_score = score
-                    best_move = (i, j)
-
+        for i, j in self.heuristic_sort_moves(self.get_all_valid_moves()):
+            self.matrix[i, j] = color
+            score = (
+                self.minimax(2, False) if ai_type == "minimax"
+                else self.alpha_beta_minimax(-math.inf, math.inf, 2, color, False)
+            )
+            self.matrix[i, j] = EMPTY
+            if score > best_score:
+                best_score = score
+                best_move = (i, j)
         if best_move:
-            self.matrix[best_move[0], best_move[1]] = color  # Corrected placement
-            if color == 1:
-                print(f"AI places ⚪ at position ({best_move[0]}, {best_move[1]})")
-                self.buttons[best_move[0]][best_move[1]].config(text="⚪", state="disabled")
-            else:
-                print(f"AI places ⚫ at position ({best_move[0]}, {best_move[1]})")
-                self.buttons[best_move[0]][best_move[1]].config(text="⚫", state="disabled")
+            self.matrix[best_move[0], best_move[1]] = color
+            return best_move
 
-    def human_move(self):
-        while True:
-            try:
-                a = self.human_turn
-                print(a)
-                if a[0] == -1:
-                    time.sleep(1)
-                    continue
-                i = a[0]
-                j = a[1]   
-                if self.matrix[i, j] == EMPTY:
-                    self.matrix[i, j] = BLACK
-                    break
-                else:
-                    print("Cell is already taken. Try again.")
-            except (IndexError, ValueError):
-                print("Invalid input. Please enter row and column between 0 and", self.size - 1)
-                
-                
-    def run_player_game(self,ai_type):
-        ai_type = "minimax" if ai_type == "1" else "alpha-beta"
-        self.print_board()
-    
-        while True:
-            self.human_move()
-            self.print_board()
-            if self.is_winner(BLACK):
-                print("You win!")
-                break
-            if self.is_draw():
-                print("It's a draw!")
-                break
-        
-            self.ai_move(ai_type=ai_type)
-            self.print_board()
-            if self.is_winner(WHITE):
-                print("AI wins!")
-                break
-            if self.is_draw():
-                print("It's a draw!")
-                break
-    
-    def run_ai_game(self,ai_type_1 = 1,ai_type_2 = 1):
-        #ai_type_1 = input("Choose first AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
-        #ai_type_2 = input("Choose second AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
-        ai_type_1 = "minimax" if ai_type_1 == "1" else "alpha-beta"
-        ai_type_2 = "minimax" if ai_type_2 == "1" else "alpha-beta"
+# PyGame GUI logic
+def draw_board(screen, game):
+    screen.fill(BG_COLOR)
+    for i in range(game.size):
+        pygame.draw.line(screen, GRID_COLOR,
+                         (MARGIN, MARGIN + i * CELL_SIZE),
+                         (MARGIN + (game.size - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE), LINE_WIDTH)
+        pygame.draw.line(screen, GRID_COLOR,
+                         (MARGIN + i * CELL_SIZE, MARGIN),
+                         (MARGIN + i * CELL_SIZE, MARGIN + (game.size - 1) * CELL_SIZE), LINE_WIDTH)
 
-        self.print_board()
+    for r in range(game.size):
+        for c in range(game.size):
+            if game.matrix[r, c] == BLACK:
+                pygame.draw.circle(screen, BLACK_COLOR,
+                                   (MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE), CELL_SIZE // 3)
+            elif game.matrix[r, c] == WHITE:
+                pygame.draw.circle(screen, WHITE_COLOR,
+                                   (MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE), CELL_SIZE // 3)
 
-        while True:
-            self.ai_move(ai_type=ai_type_1)
-            self.print_board()
-            if self.is_winner(WHITE):
-                print("First AI wins!")
-                break
-            if self.is_draw():
-                print("It's a draw!")
-                break
+def get_cell_from_mouse(pos, size):
+    x, y = pos
+    col = round((x - MARGIN) / CELL_SIZE)
+    row = round((y - MARGIN) / CELL_SIZE)
+    if 0 <= row < size and 0 <= col < size:
+        return row, col
+    return None
 
-            self.ai_move(ai_type=ai_type_2,color=BLACK)
-            self.print_board()
-            if self.is_winner(BLACK):
-                print("Second AI wins!")
-                break
-            if self.is_draw():
-                print("It's a draw!")
-                break
+def main():
+    pygame.init()
+    board_size = 15
+    game = Game(board_size)
+    ai_type = "alpha-beta"  # or "minimax"
 
-if __name__ == '__main__':
-    Game(5)
-    pass
-    
-def a():
-    game_mode = input("Choose game mode (1 for Human vs AI, 2 for AI vs AI): ").strip()
-    board_size= int(input("Enter size of board either 15 or 19: "))
+    screen = pygame.display.set_mode((CELL_SIZE * board_size + MARGIN * 2,
+                                      CELL_SIZE * board_size + MARGIN * 2))
+    pygame.display.set_caption("Gomoku (Human vs AI)")
+    clock = pygame.time.Clock()
 
-    if game_mode == "1":
-        ai_type = input("Choose AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
-        ai_type = "minimax" if ai_type == "1" else "alpha-beta"
-        g = Game(board_size)
-        g.print_board()
+    running = True
+    game_over = False
 
-        while True:
-            g.human_move()
-            g.print_board()
-            if g.is_winner(BLACK):
-                print("You win!")
-                break
-            if g.is_draw():
-                print("It's a draw!")
-                break
+    while running:
+        draw_board(screen, game)
+        pygame.display.flip()
 
-            g.ai_move(ai_type=ai_type)
-            g.print_board()
-            if g.is_winner(WHITE):
-                print("AI wins!")
-                break
-            if g.is_draw():
-                print("It's a draw!")
-                break
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-    elif game_mode == "2":
-        ai_type_1 = input("Choose first AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
-        ai_type_2 = input("Choose second AI type (1 for Minimax, 2 for Alpha-Beta): ").strip()
-        ai_type_1 = "minimax" if ai_type_1 == "1" else "alpha-beta"
-        ai_type_2 = "minimax" if ai_type_2 == "1" else "alpha-beta"
+            if not game_over and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                cell = get_cell_from_mouse(event.pos, game.size)
+                if cell:
+                    r, c = cell
+                    if game.matrix[r, c] == EMPTY:
+                        game.matrix[r, c] = BLACK
+                        if game.is_winner(BLACK):
+                            print("You win!")
+                            game_over = True
+                            break
+                        if game.is_draw():
+                            print("Draw!")
+                            game_over = True
+                            break
 
-        g = Game(board_size)
-        g.print_board()
+                        ai_move = game.ai_move(ai_type=ai_type, color=WHITE)
+                        if ai_move:
+                            if game.is_winner(WHITE):
+                                print("AI wins!")
+                                game_over = True
+                        if game.is_draw():
+                            print("Draw!")
+                            game_over = True
 
-        while True:
-            g.ai_move(ai_type=ai_type_1)
-            g.print_board()
-            if g.is_winner(WHITE):
-                print("First AI wins!")
-                break
-            if g.is_draw():
-                print("It's a draw!")
-                break
+        clock.tick(FPS)
 
-            g.ai_move(ai_type=ai_type_2,color=BLACK)
-            g.print_board()
-            if g.is_winner(BLACK):
-                print("Second AI wins!")
-                break
-            if g.is_draw():
-                print("It's a draw!")
-                break
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
